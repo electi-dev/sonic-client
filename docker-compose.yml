@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      # Persist user keys and job sidecar files across restarts
+      - ./data:/app/data
+      # Mount your config files (copy from examples first)
+      - ./config.toml:/app/config.toml:ro
+      - ./kms_config.toml:/app/kms_config.toml:ro
+    environment:
+      RUST_LOG: info
+      CONFIG_PATH: /app/config.toml
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped

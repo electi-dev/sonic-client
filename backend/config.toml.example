@@ -1,0 +1,7 @@
+bind_addr            = "0.0.0.0:3001"
+data_dir             = "./data"
+external_service_url = "http://localhost:8080"
+# Path to the CoreClientConfig TOML file consumed by the KMS client (user_decrypt)
+kms_config_path      = "./kms_config.toml"
+# Static KMS key ID used for usecase1 UserDecrypt
+key_id               = "your-static-key-id-here"

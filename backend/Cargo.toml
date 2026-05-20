@@ -1,0 +1,53 @@
+[package]
+name = "kms-gateway-backend"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "gateway"
+path = "src/main.rs"
+
+[dependencies]
+axum            = { version = "0.8", features = ["macros"] }
+tokio           = { version = "1", features = ["full"] }
+tower-http      = { version = "0.6", features = ["cors", "trace"] }
+serde           = { version = "1", features = ["derive"] }
+serde_json      = "1"
+toml            = "0.8"
+bincode         = "1"
+reqwest = { version = "0.13.2", features = ["json"] }
+uuid            = { version = "1", features = ["v4", "serde"] }
+anyhow          = "1"
+thiserror       = "2"
+tracing         = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+hex             = "0.4"
+dashmap         = "6"
+
+# FHE — use x86_64-unix on Linux/x86, remove on ARM/Mac
+tfhe = { version = "=1.6.1", features = ["boolean", "shortint", "integer"] }
+
+# ── Internal KMS crates ──────────────────────────────────────────────────────
+# Adjust paths to match your workspace layout.
+prost = "0.14.3"
+tonic = "0.14.5"
+kms-core-client = {path = "../../kms/core-client"}
+kms = { path = "../../kms/core/service", default-features = false }  # Core KMS service
+observability = { path = "../../kms/observability", default-features = false }  # Core KMS service
+kms-grpc = { path = "../../kms/core/grpc" }
+rand = "0.10.0"
+aes = "=0.8.4"  # AES encryption - LOW RISK: RustCrypto org, very popular (135M+ downloads), actively maintained
+aes-gcm = { version = "=0.10.3", features = ["std"] }  # AES-GCM authenticated encryption - LOW RISK: RustCrypto org, 62M+ downloads
+aes-gcm-siv = "=0.11.1"  # AES-GCM-SIV authenticated encryption - LOW RISK: RustCrypto org, nonce misuse resistant, 9M+ downloads
+aes-prng = "=0.2.1"  # AES-based PRNG for deterministic randomness - LOW RISK: Maintained by @mortendahl (Zama) and Dragos (ex Zama)
+alloy-sol-types = "=1.4.1"  # Solidity types & EIP-712 - LOW RISK: Alloy/Paradigm team
+alloy-primitives = "=1.4.1"  # Ethereum primitives - LOW RISK: Alloy/Paradigm team
+strum = "=0.27.1"  # Enum utilities - MEDIUM RISK: Reputable individual maintainer (Peternator7), 251M+ downloads
+strum_macros = "=0.27.1"  # Enum derive macros - MEDIUM RISK: Reputable individual maintainer (Peternator7)
+
+[patch.crates-io]
+# MEDIUM RISK: Using fork instead of upstream - verify changes, consider upstreaming
+attestation-doc-validation = { git = 'https://github.com/mkmks/attestation-doc-validation.git', branch = 'timestamps' }
+rcgen = { git = 'https://github.com/zama-ai/rcgen.git', features=["vefify", "verify-aws"] }
+rustls = { git = 'https://github.com/zama-ai/rustls.git', branch = 'rel-0.23' }
+rustls-webpki = { git = 'https://github.com/zama-ai/webpki.git', branch = 'rel-0.103' }
