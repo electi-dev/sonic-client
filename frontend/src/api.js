@@ -27,6 +27,7 @@ export const api = {
   submitUsecase1: (ips) => req('POST', '/jobs/usecase1', { ips }),
   submitUsecase2: (hash) => req('POST', '/jobs/usecase2', { hash }),
   submitUsecase3: (hash) => req('POST', '/jobs/usecase3', { hash }),
+  submitUsecase4: (values) => req('POST', '/jobs/usecase4', { values }),
   getJob: (id) => req('GET', `/jobs/${id}`),
 
   setSession: (id) => { sessionId = id; localStorage.setItem('session_id', id); },

@@ -14,6 +14,7 @@ pub enum JobKind {
     Usecase1 { ip_count: usize },
     Usecase2,
     Usecase3,
+    Usecase4,
 }
 
 #[derive(Clone, Debug)]
@@ -31,6 +32,8 @@ pub enum JobResult {
     Usecase1(Vec<IpResult>),
     Usecase2(bool),
     Usecase3(bool),
+    /// u64 serialised as String to avoid JSON precision loss
+    Usecase4(String),
 }
 
 #[derive(Clone, Debug, Serialize)]

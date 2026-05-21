@@ -31,6 +31,11 @@ pub struct Usecase2Body {
     hash: String,
 }
 
+#[derive(Deserialize)]
+pub struct Usecase4Body {
+    values: Vec<i64>,
+}
+
 #[derive(serde::Serialize)]
 pub struct SubmitResponse {
     job_id: Uuid,
@@ -222,6 +227,50 @@ pub async fn submit_usecase3(
     }))
 }
 
+pub async fn submit_usecase4(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<Usecase4Body>,
+) -> Result<Json<SubmitResponse>, AppError> {
+    let session = state.session_from_headers(&headers)?;
+
+    if body.values.is_empty() {
+        return Err(AppError::BadRequest("values must not be empty".into()));
+    }
+
+    let key_path = state.client_key_path(&session.username)?;
+    let server_key_path = state.server_key_path(&session.username)?;
+
+    let encrypted = tokio::task::spawn_blocking(move || {
+        let ck = encryption::load_client_key(&key_path)?;
+        let sk = encryption::load_server_key(&server_key_path)?;
+        set_server_key(sk);
+        encryption::encrypt_i64_list(&body.values, &ck)
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!(e))??;
+
+    let ext = state.external();
+    let ext_job_id = ext.post_job(&session.jwt, "usecase4").await?;
+    ext.upload_job_data(&session.jwt, ext_job_id, encrypted)
+        .await?;
+
+    let local_job_id = Uuid::new_v4();
+    state.jobs.insert(
+        local_job_id,
+        JobEntry {
+            username: session.username,
+            external_job_id: ext_job_id,
+            kind: JobKind::Usecase4,
+            status: JobStatus::Pending,
+        },
+    );
+
+    Ok(Json(SubmitResponse {
+        job_id: local_job_id,
+    }))
+}
+
 pub fn decode_hex(s: &str) -> Result<Vec<u8>, std::num::ParseIntError> {
     (0..s.len())
         .step_by(2)
@@ -364,6 +413,34 @@ pub async fn get_job(
                     return;
                 };
                 Ok(JobResult::Usecase2(result))
+            }
+            JobKind::Usecase4 => {
+                let Ok(key_path) = state_clone
+                    .client_key_path(&username)
+                    .inspect_err(|e| tracing::error!("getting key path: {:?}", e))
+                else {
+                    return;
+                };
+                let Ok(server_key_path) = state_clone
+                    .server_key_path(&username)
+                    .inspect_err(|e| tracing::error!("getting key path: {:?}", e))
+                else {
+                    return;
+                };
+                let Ok(result) = tokio::task::spawn_blocking(move || {
+                    let ck = encryption::load_client_key(&key_path)?;
+                    let sk = encryption::load_server_key(&server_key_path)?;
+                    set_server_key(sk);
+                    decryption::decrypt_usecase4(&ct_bytes, &ck)
+                })
+                .await
+                .inspect_err(|e| tracing::error!("decrypting spawn: {:?}", e)) else {
+                    return;
+                };
+                let Ok(result) = result.inspect_err(|e| tracing::error!("decrypt: {:?}", e)) else {
+                    return;
+                };
+                Ok(JobResult::Usecase4(result.to_string()))
             }
         };
 

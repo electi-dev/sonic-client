@@ -46,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/jobs/usecase1", post(routes::jobs::submit_usecase1))
         .route("/api/jobs/usecase2", post(routes::jobs::submit_usecase2))
         .route("/api/jobs/usecase3", post(routes::jobs::submit_usecase3))
+        .route("/api/jobs/usecase4", post(routes::jobs::submit_usecase4))
         .route("/api/jobs/{job_id}", get(routes::jobs::get_job))
         .layer(
             CorsLayer::new()

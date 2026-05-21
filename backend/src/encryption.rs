@@ -1,16 +1,10 @@
 use anyhow::Context;
 use tfhe::{
-    generate_keys, ClientKey, CompactPublicKey, CompressedFheBool, ConfigBuilder, FheBool,
-    FheUint256, FheUint32, ServerKey,
+    generate_keys, ClientKey, CompactCiphertextListBuilder, CompactPublicKey, CompressedFheBool,
+    ConfigBuilder, FheBool, FheInt64, FheUint256, FheUint32,
 };
-use tfhe::{prelude::*, CompactCiphertextListBuilder};
+use tfhe::{prelude::*, ServerKey};
 
-/// Generates a fresh FHE keypair.
-/// The server key bytes are uploaded to the external service at registration.
-/// The client key is stored locally for encryption/decryption.
-///
-/// NOTE: With default security parameters this takes 30–120 seconds.
-/// For development, consider a lower-security config.
 pub fn generate_fhe_keys() -> anyhow::Result<(ClientKey, Vec<u8>)> {
     let config = ConfigBuilder::default().build();
     let (client_key, server_key) = generate_keys(config);
@@ -40,7 +34,6 @@ pub fn load_server_key(path: &std::path::Path) -> anyhow::Result<ServerKey> {
         .map_err(|e| anyhow::anyhow!("deserialize server key: {:?}", e))
 }
 
-/// Encrypts up to 256 IPv4 addresses (as u32) into a serialised list of FheUint32 ciphertexts.
 pub fn encrypt_ips(ips: &[u32], public_key: &CompactPublicKey) -> anyhow::Result<Vec<u8>> {
     let mut builder = CompactCiphertextListBuilder::new(&public_key);
     for ip in ips.into_iter() {
@@ -83,4 +76,23 @@ pub fn decrypt_bool(ct_bytes: &[u8], client_key: &ClientKey) -> anyhow::Result<b
             anyhow::anyhow!(e)
         })?;
     Ok(ct.decompress().decrypt(client_key))
+}
+
+/// Encrypts a list of u64 values as a CompactCiphertextList using a PublicKey
+/// derived from the client key (matches the server-side CompactCiphertextListBuilder pattern).
+pub fn encrypt_i64_list(values: &[i64], client_key: &ClientKey) -> anyhow::Result<Vec<u8>> {
+    use tfhe::{CompactCiphertextListBuilder, CompactPublicKey};
+
+    let public_key = CompactPublicKey::new(client_key);
+    let mut builder = CompactCiphertextListBuilder::new(&public_key);
+    for &val in values {
+        builder
+            .push_with_num_bits(val, FheInt64::num_bits())
+            .unwrap();
+    }
+    let compact_list = builder.build();
+    let mut buf = Vec::new();
+    tfhe::safe_serialization::safe_serialize(&compact_list, &mut buf, 1 << 30)
+        .context("serialize CompactCiphertextList")?;
+    Ok(buf)
 }
