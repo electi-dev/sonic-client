@@ -13,6 +13,7 @@ pub struct JobEntry {
 pub enum JobKind {
     Usecase1 { ip_count: usize },
     Usecase2,
+    Usecase3,
 }
 
 #[derive(Clone, Debug)]
@@ -29,6 +30,7 @@ pub enum JobStatus {
 pub enum JobResult {
     Usecase1(Vec<IpResult>),
     Usecase2(bool),
+    Usecase3(bool),
 }
 
 #[derive(Clone, Debug, Serialize)]

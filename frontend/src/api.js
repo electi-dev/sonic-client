@@ -12,7 +12,7 @@ async function req(method, path, body) {
   });
 
   let data = null;
-  try { data = await res.json(); } catch (_) {}
+  try { data = await res.json(); } catch (_) { }
 
   if (!res.ok) {
     throw new Error(data?.error ?? `HTTP ${res.status}`);
@@ -21,14 +21,15 @@ async function req(method, path, body) {
 }
 
 export const api = {
-  register:      (u, p) => req('POST', '/auth/register', { username: u, password: p }),
-  login:         (u, p) => req('POST', '/auth/login',    { username: u, password: p }),
-  logout:        ()     => req('POST', '/auth/logout'),
-  submitUsecase1: (ips)  => req('POST', '/jobs/usecase1', { ips }),
+  register: (u, p) => req('POST', '/auth/register', { username: u, password: p }),
+  login: (u, p) => req('POST', '/auth/login', { username: u, password: p }),
+  logout: () => req('POST', '/auth/logout'),
+  submitUsecase1: (ips) => req('POST', '/jobs/usecase1', { ips }),
   submitUsecase2: (hash) => req('POST', '/jobs/usecase2', { hash }),
-  getJob:         (id)   => req('GET',  `/jobs/${id}`),
+  submitUsecase3: (hash) => req('POST', '/jobs/usecase3', { hash }),
+  getJob: (id) => req('GET', `/jobs/${id}`),
 
-  setSession:  (id) => { sessionId = id; localStorage.setItem('session_id', id); },
-  clearSession: ()  => { sessionId = null; localStorage.removeItem('session_id'); },
-  hasSession:   ()  => Boolean(sessionId),
+  setSession: (id) => { sessionId = id; localStorage.setItem('session_id', id); },
+  clearSession: () => { sessionId = null; localStorage.removeItem('session_id'); },
+  hasSession: () => Boolean(sessionId),
 };

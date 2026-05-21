@@ -9,7 +9,6 @@ function Badge({ status }) {
   return <span className={`badge ${status}`}>{status}</span>;
 }
 
-/** Poll a list of jobs, updating state when results arrive. */
 function usePoll(jobs, setJobs) {
   const jobsRef = useRef(jobs);
   jobsRef.current = jobs;
@@ -41,17 +40,17 @@ function usePoll(jobs, setJobs) {
 // ── Usecase 1 ─────────────────────────────────────────────────────────────────
 
 function Usecase1Panel() {
-  const [ipInput, setIpInput]     = useState('');
-  const [jobs, setJobs]           = useState([]);
-  const [expanded, setExpanded]   = useState(null);
-  const [error, setError]         = useState('');
-  const [loading, setLoading]     = useState(false);
+  const [ipInput, setIpInput] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [expanded, setExpanded] = useState(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   usePoll(jobs, setJobs);
 
   const submit = async () => {
     const ips = ipInput.split('\n').map(s => s.trim()).filter(Boolean);
-    if (!ips.length)   return setError('Enter at least one IP address');
+    if (!ips.length) return setError('Enter at least one IP address');
     if (ips.length > 256) return setError('Maximum 256 IPs per request');
     setError('');
     setLoading(true);
@@ -69,7 +68,6 @@ function Usecase1Panel() {
   return (
     <div>
       <p className="hint">Submit up to 256 IPv4 addresses. Each bit in the Uint256 result indicates a match.</p>
-
       <textarea
         rows={6}
         placeholder={'1.2.3.4\n5.6.7.8\n...'}
@@ -83,14 +81,7 @@ function Usecase1Panel() {
 
       {jobs.length > 0 && (
         <table className="jobs-table">
-          <thead>
-            <tr>
-              <th>job id</th>
-              <th>ips</th>
-              <th>status</th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead><tr><th>job id</th><th>ips</th><th>status</th><th></th></tr></thead>
           <tbody>
             {jobs.map(j => (
               <>
@@ -100,16 +91,11 @@ function Usecase1Panel() {
                   <td><Badge status={j.status} /></td>
                   <td>
                     {j.status === 'done' && (
-                      <button
-                        className="result-toggle"
-                        onClick={() => setExpanded(expanded === j.id ? null : j.id)}
-                      >
+                      <button className="result-toggle" onClick={() => setExpanded(expanded === j.id ? null : j.id)}>
                         {expanded === j.id ? 'hide' : 'results'}
                       </button>
                     )}
-                    {j.status === 'error' && (
-                      <span style={{ color: '#8a4a4a', fontSize: 11 }}>{j.error}</span>
-                    )}
+                    {j.status === 'error' && <span style={{ color: '#8a4a4a', fontSize: 11 }}>{j.error}</span>}
                   </td>
                 </tr>
                 {expanded === j.id && j.result && (
@@ -137,25 +123,25 @@ function Usecase1Panel() {
   );
 }
 
-// ── Usecase 2 ─────────────────────────────────────────────────────────────────
+// ── Shared hash-lookup panel (usecase2 + usecase3) ────────────────────────────
 
-function Usecase2Panel() {
-  const [hash, setHash]       = useState('');
-  const [jobs, setJobs]       = useState([]);
-  const [error, setError]     = useState('');
+function HashLookupPanel({ submitFn, hint, placeholder }) {
+  const [input, setInput] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   usePoll(jobs, setJobs);
 
   const submit = async () => {
-    const h = hash.trim();
-    if (!h) return setError('Enter a file hash');
+    const val = input.trim();
+    if (!val) return setError('Enter a value');
     setError('');
     setLoading(true);
     try {
-      const res = await api.submitUsecase2(h);
-      setJobs(prev => [{ id: res.job_id, status: 'pending', result: null, hash: h }, ...prev]);
-      setHash('');
+      const hash = await submitFn(val);          // returns job_id
+      setJobs(prev => [{ id: hash.job_id, status: 'pending', result: null, label: val }, ...prev]);
+      setInput('');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -165,13 +151,12 @@ function Usecase2Panel() {
 
   return (
     <div>
-      <p className="hint">Submit a 32-byte file hash (64 hex chars, 0x prefix optional). Returns found / not found.</p>
-
+      <p className="hint">{hint}</p>
       <input
         type="text"
-        placeholder="0xdeadbeef… (64 hex chars)"
-        value={hash}
-        onChange={e => setHash(e.target.value)}
+        placeholder={placeholder}
+        value={input}
+        onChange={e => setInput(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && submit()}
       />
       <button onClick={submit} disabled={loading}>
@@ -181,19 +166,14 @@ function Usecase2Panel() {
 
       {jobs.length > 0 && (
         <table className="jobs-table">
-          <thead>
-            <tr>
-              <th>job id</th>
-              <th>hash</th>
-              <th>status</th>
-              <th>result</th>
-            </tr>
-          </thead>
+          <thead><tr><th>job id</th><th>input</th><th>status</th><th>result</th></tr></thead>
           <tbody>
             {jobs.map(j => (
               <tr key={j.id}>
                 <td style={{ color: '#444', fontSize: 11 }}>{j.id.slice(0, 8)}…</td>
-                <td style={{ color: '#444', fontSize: 11 }}>{j.hash.replace(/^0x/, '').slice(0, 12)}…</td>
+                <td style={{ color: '#666', fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {j.label}
+                </td>
                 <td><Badge status={j.status} /></td>
                 <td>
                   {j.status === 'done' && j.result != null && (
@@ -214,7 +194,19 @@ function Usecase2Panel() {
   );
 }
 
+// SHA-256 via Web Crypto (no library needed)
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
+
+const TABS = [
+  { id: 'usecase1', label: 'usecase1 — ip lookup' },
+  { id: 'usecase2', label: 'usecase2 — file hash' },
+  { id: 'usecase3', label: 'usecase3 — string lookup' },
+];
 
 export default function Dashboard({ onLogout }) {
   const [tab, setTab] = useState('usecase1');
@@ -227,22 +219,38 @@ export default function Dashboard({ onLogout }) {
       </div>
 
       <div className="tabs">
-        <button
-          className={`tab${tab === 'usecase1' ? ' active' : ''}`}
-          onClick={() => setTab('usecase1')}
-        >
-          usecase1 — ip lookup
-        </button>
-        <button
-          className={`tab${tab === 'usecase2' ? ' active' : ''}`}
-          onClick={() => setTab('usecase2')}
-        >
-          usecase2 — file hash
-        </button>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            className={`tab${tab === t.id ? ' active' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <div className="tab-body">
-        {tab === 'usecase1' ? <Usecase1Panel /> : <Usecase2Panel />}
+        {tab === 'usecase1' && <Usecase1Panel />}
+
+        {tab === 'usecase2' && (
+          <HashLookupPanel
+            submitFn={hash => api.submitUsecase2(hash)}
+            hint="Submit a 32-byte file hash (64 hex chars, 0x prefix optional). Returns found / not found."
+            placeholder="0xdeadbeef… (64 hex chars)"
+          />
+        )}
+
+        {tab === 'usecase3' && (
+          <HashLookupPanel
+            submitFn={async str => {
+              const hash = await sha256hex(str);
+              return api.submitUsecase3(hash);
+            }}
+            hint="Submit any string. The browser hashes it with SHA-256 before sending. Returns found / not found."
+            placeholder="any string…"
+          />
+        )}
       </div>
     </div>
   );
