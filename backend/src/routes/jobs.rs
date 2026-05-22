@@ -7,7 +7,9 @@ use axum::{
 };
 use kms_grpc::KeyId;
 use serde::Deserialize;
-use tfhe::set_server_key;
+use tfhe::{
+    safe_serialization, set_server_key, CompressedCiphertextListBuilder, CompressedFheUint256,
+};
 use uuid::Uuid;
 
 use crate::{
@@ -354,7 +356,66 @@ pub async fn get_job(
                 else {
                     return;
                 };
-                decryption::decrypt_usecase1(ct_bytes, kms_cfg, &user_dir, key_id, &ips)
+
+                let Ok(Ok(serialized_ct)) = tokio::task::spawn_blocking(move || {
+                    let Ok(public_key_bytes) =
+                        std::fs::read("../keys.bin").inspect_err(|e| tracing::error!("{:?}", e))
+                    else {
+                        return Err(anyhow::anyhow!("error rading keys"));
+                    };
+                    let public_key: tfhe::xof_key_set::CompressedXofKeySet =
+                        tfhe::safe_serialization::safe_deserialize(
+                            public_key_bytes.as_slice(),
+                            1 << 30,
+                        )
+                        .unwrap();
+                    tracing::info!("deserialized server_key");
+                    let public_key = public_key
+                        .decompress()
+                        .map_err(|e| {
+                            tracing::error!("decompressing keys.bin: {:?}", e);
+                            anyhow::anyhow!(e)
+                        })
+                        .unwrap();
+
+                    let (_, server_key) = {
+                        let parts = public_key.into_raw_parts();
+                        (parts.0, parts.1)
+                    };
+                    set_server_key(server_key);
+
+                    let Ok(ct) = safe_serialization::safe_deserialize::<CompressedFheUint256>(
+                        ct_bytes.to_vec().as_slice(),
+                        1 << 30,
+                    )
+                    .inspect_err(|e| tracing::error!("deserializing result: {}", e)) else {
+                        return Err(anyhow::anyhow!("error deserialing CompressedFheUint256"));
+                    };
+                    let ct = ct.decompress();
+                    let mut builder = CompressedCiphertextListBuilder::new();
+                    builder.push(ct);
+                    let compact_list = builder
+                        .build()
+                        .expect("Could not build CompressedCiphertextList");
+
+                    let mut serialized_ct = Vec::new();
+                    if let Err(_) = safe_serialization::safe_serialize(
+                        &compact_list,
+                        &mut serialized_ct,
+                        1024 * 1024 * 1024,
+                    )
+                    .inspect_err(|e| tracing::error!("Serializing list: {:?}", e))
+                    {
+                        return Err(anyhow::anyhow!("List serializing error"));
+                    };
+                    Ok(serialized_ct)
+                })
+                .await
+                .inspect_err(|e| tracing::error!("error on blocking spawn: {:?}", e)) else {
+                    return;
+                };
+
+                decryption::decrypt_usecase1(serialized_ct, kms_cfg, &user_dir, key_id, &ips)
                     .await
                     .map(JobResult::Usecase1)
             }
