@@ -53,7 +53,31 @@ pub fn encrypt_ips(ips: &[u32], public_key: &CompactPublicKey) -> anyhow::Result
 }
 
 /// Encrypts a 32-byte file hash as a single FheUint256 ciphertext.
-pub fn encrypt_hash(hash_bytes: &[u8; 32], client_key: &ClientKey) -> anyhow::Result<Vec<u8>> {
+pub fn encrypt_hash(hash_bytes: &[u8; 16], client_key: &ClientKey) -> anyhow::Result<Vec<u8>> {
+    let public_key = CompactPublicKey::new(client_key);
+    let mut builder = CompactCiphertextListBuilder::new(&public_key);
+    let first_num: [u8; 8] = hash_bytes[0..8].try_into().unwrap();
+    let first_num = u64::from_be_bytes(first_num);
+    builder.push_with_num_bits(first_num, 64);
+
+    let second_num: [u8; 8] = hash_bytes[8..16].try_into().unwrap();
+    let second_num = u64::from_be_bytes(second_num);
+    builder.push_with_num_bits(second_num, 64);
+    let compact_list = builder.build();
+
+    let mut serialized_ct = Vec::new();
+    tfhe::safe_serialization::safe_serialize(
+        &compact_list,
+        &mut serialized_ct,
+        1024 * 1024 * 1024,
+    )?;
+    Ok(serialized_ct)
+}
+
+pub fn encrypt_hash_usecase3(
+    hash_bytes: &[u8; 32],
+    client_key: &ClientKey,
+) -> anyhow::Result<Vec<u8>> {
     let mut bytes = [0u8; 16];
     bytes.copy_from_slice(&hash_bytes[0..16]);
     let first = u128::from_be_bytes(bytes);

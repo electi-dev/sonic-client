@@ -29,7 +29,7 @@ pub struct Usecase1Body {
 
 #[derive(Deserialize)]
 pub struct Usecase2Body {
-    /// 32-byte file hash as hex (with or without 0x prefix)
+    /// 16-byte file hash as hex (with or without 0x prefix)
     hash: String,
 }
 
@@ -141,12 +141,12 @@ pub async fn submit_usecase2(
     let hash_str = body.hash.trim().trim_start_matches("0x");
     let hash_bytes =
         hex::decode(hash_str).map_err(|_| AppError::BadRequest("invalid hex hash".into()))?;
-    if hash_bytes.len() != 32 {
+    if hash_bytes.len() != 16 {
         return Err(AppError::BadRequest(
-            "hash must be exactly 32 bytes (64 hex chars)".into(),
+            "hash must be exactly 16 bytes (64 hex chars)".into(),
         ));
     }
-    let hash_arr: [u8; 32] = hash_bytes.try_into().unwrap();
+    let hash_arr: [u8; 16] = hash_bytes.try_into().unwrap();
 
     let key_path = state.client_key_path(&session.username)?;
     let server_key_path = state.server_key_path(&session.username)?;
@@ -203,7 +203,7 @@ pub async fn submit_usecase3(
         let ck = encryption::load_client_key(&key_path)?;
         let sk = encryption::load_server_key(&server_key_path)?;
         set_server_key(sk);
-        encryption::encrypt_hash(&hash_arr, &ck)
+        encryption::encrypt_hash_usecase3(&hash_arr, &ck)
     })
     .await
     .map_err(|e| anyhow::anyhow!(e))??;

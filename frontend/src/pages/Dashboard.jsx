@@ -57,7 +57,7 @@ function Usecase1Panel() {
 
   return (
     <div>
-      <p className="hint">Submit up to 256 IPv4 addresses. Each bit in the Uint256 result indicates a match.</p>
+      <p className="hint">Submit up to 256 IPv4 addresses. After enough ip addresses from different users is gathered, the comparison will run on encrypted data. The client will only know information about IP addresses it submitted </p>
       <textarea rows={6} placeholder={'1.2.3.4\n5.6.7.8\n...'} value={ipInput} onChange={e => setIpInput(e.target.value)} />
       <button onClick={submit} disabled={loading}>{loading ? 'encrypting & submitting...' : 'submit'}</button>
       {error && <div className="error">{error}</div>}
@@ -195,7 +195,7 @@ function Usecase4Panel() {
 
   return (
     <div>
-      <p className="hint">Space or comma-separated u64 integers. Result is a single u64 displayed as a float (4 decimal places).</p>
+      <p className="hint">8 space or comma-separated u64 integers. Numbers represent inputs for the inferrence model</p>
       <input type="text" placeholder="100 200 300  or  100,200,300" value={input}
         onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
       <button onClick={submit} disabled={loading}>{loading ? 'encrypting & submitting...' : 'submit'}</button>
@@ -258,8 +258,8 @@ export default function Dashboard({ onLogout }) {
         {tab === 'usecase2' && (
           <HashLookupPanel
             submitFn={hash => api.submitUsecase2(hash)}
-            hint="Submit a 32-byte file hash (64 hex chars, 0x prefix optional). Returns found / not found."
-            placeholder="0xdeadbeef… (64 hex chars)"
+            hint="Submit a 16-byte file hash (32 hex chars, 0x prefix optional). Returns found / not found."
+            placeholder="0xdeadbeef… (32 hex chars)"
           />
         )}
         {tab === 'usecase3' && (
